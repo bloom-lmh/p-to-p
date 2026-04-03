@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNG to SVG Converter</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.28), transparent 30%),
+                linear-gradient(135deg, #1f4aa8 0%, #17a57b 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: #182030;
+        }
+        .container {
+            width: 100%;
+            max-width: 760px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(14px);
+            border-radius: 24px;
+            box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22);
+            padding: 36px;
+        }
+        h1 {
+            font-size: 30px;
+            line-height: 1.1;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #5b6475;
+            margin-bottom: 28px;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        .upload-area {
+            border: 2px dashed #4a7bd8;
+            border-radius: 18px;
+            background: #f5f8ff;
+            padding: 36px 22px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.25s ease;
+        }
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: #17a57b;
+            background: #eefcf7;
+        }
+        .upload-area.has-file {
+            border-style: solid;
+            border-color: #17a57b;
+        }
+        .upload-icon {
+            font-size: 42px;
+            margin-bottom: 14px;
+        }
+        .upload-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #22417f;
+            margin-bottom: 8px;
+        }
+        .upload-hint {
+            color: #6b7280;
+            font-size: 13px;
+        }
+        #fileInput {
+            display: none;
+        }
+        .section {
+            margin-top: 26px;
+        }
+        .section-label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+        .preset-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        .preset-option {
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 14px 12px;
+            background: #fff;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+        .preset-option:hover {
+            border-color: #4a7bd8;
+            transform: translateY(-1px);
+        }
+        .preset-option.selected {
+            border-color: #1f4aa8;
+            background: #eef4ff;
+            box-shadow: 0 10px 24px rgba(31, 74, 168, 0.09);
+        }
+        .preset-name {
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .preset-desc {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #6b7280;
+        }
+        .preset-tip,
+        .option-tip {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: #f4f7fb;
+            color: #516072;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .option-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            border: 2px solid #dbe5f2;
+            border-radius: 16px;
+            background: #f9fbff;
+            padding: 16px;
+            transition: 0.2s ease;
+        }
+        .option-card.enabled {
+            border-color: #1f4aa8;
+            background: #eef4ff;
+        }
+        .option-check {
+            width: 20px;
+            height: 20px;
+            margin-top: 2px;
+            accent-color: #1f4aa8;
+            cursor: pointer;
+        }
+        .option-title {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .option-desc {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #5b6475;
+        }
+        .convert-btn,
+        .download-btn,
+        .download-btn-secondary {
+            width: 100%;
+            border: none;
+            border-radius: 14px;
+            padding: 15px 18px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+        .convert-btn {
+            margin-top: 22px;
+            background: linear-gradient(135deg, #1f4aa8, #17a57b);
+        }
+        .convert-btn:hover:not(:disabled),
+        .download-btn:hover,
+        .download-btn-secondary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(23, 165, 123, 0.18);
+        }
+        .convert-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+        .download-btn {
+            background: #17a57b;
+        }
+        .download-btn-secondary {
+            background: #1f4aa8;
+        }
+        .progress-section,
+        .result-section,
+        .error-message {
+            display: none;
+            margin-top: 22px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #1f4aa8, #17a57b);
+            transition: width 0.25s ease;
+        }
+        .progress-text {
+            margin-top: 10px;
+            text-align: center;
+            color: #5b6475;
+            font-size: 14px;
+        }
+        .result-section {
+            background: #f7fafc;
+            border-radius: 18px;
+            padding: 20px;
+        }
+        .result-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0b7d5e;
+            text-align: center;
+            margin-bottom: 14px;
+        }
+        .result-note {
+            display: none;
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: #eefcf7;
+            color: #116b52;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .metric-item {
+            background: white;
+            border-radius: 14px;
+            padding: 14px;
+            text-align: center;
+        }
+        .metric-label {
+            font-size: 12px;
+            color: #7b8596;
+            margin-bottom: 6px;
+        }
+        .metric-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1f2937;
+            word-break: break-word;
+        }
+        .download-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        .error-message {
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid #fecaca;
+            background: #fff1f2;
+            color: #b42318;
+            text-align: center;
+            line-height: 1.5;
+        }
+        @media (max-width: 640px) {
+            .container {
+                padding: 24px 18px;
+            }
+            h1 {
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PNG to SVG Converter</h1>
+        <p class="subtitle">
+            把 PNG / JPG 转成真正的 SVG 路径。<br>
+            如果目标是插入 PowerPoint 后再取消组合继续编辑，建议保留你想要的画质预设，再勾选下方的 PowerPoint 兼容清洗。
+            {% if office_export_available %}<br>这台机器还能额外导出 EMF，通常比 SVG 更容易被 PowerPoint 接受。{% endif %}
+        </p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">🖼️</div>
+            <div class="upload-text">点击或拖拽上传图片</div>
+            <div class="upload-hint">支持 PNG、JPG、JPEG，单文件最大 50MB</div>
+            <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.PNG,.JPG,.JPEG">
+        </div>
+
+        <div class="section">
+            <label class="section-label">选择画质预设</label>
+            <div class="preset-options">
+                <div class="preset-option" data-preset="clean">
+                    <div class="preset-name">Clean</div>
+                    <div class="preset-desc">更扁平，适合 Logo、图标和简单图形。</div>
+                </div>
+                <div class="preset-option selected" data-preset="balanced">
+                    <div class="preset-name">Balanced</div>
+                    <div class="preset-desc">默认推荐，兼顾画质、文件大小和速度。</div>
+                </div>
+                <div class="preset-option" data-preset="detailed">
+                    <div class="preset-name">Detailed</div>
+                    <div class="preset-desc">保留更多细节，适合插画和边缘复杂的素材。</div>
+                </div>
+                <div class="preset-option" data-preset="ultra">
+                    <div class="preset-name">Ultra</div>
+                    <div class="preset-desc">尽量保真，但文件会更大，PPT 二次编辑也会更吃力。</div>
+                </div>
+            </div>
+            <div class="preset-tip" id="presetTip">
+                `Balanced` 适合大多数图片；如果你更在意细节，优先改成 `Detailed` 或 `Ultra`，不要靠降低预设换 PPT 兼容。
+            </div>
+        </div>
+
+        <div class="section">
+            <label class="section-label">PowerPoint 兼容选项</label>
+            <div class="option-card" id="pptOptionCard">
+                <input type="checkbox" id="pptOptimize" class="option-check">
+                <div>
+                    <div class="option-title">启用 PowerPoint 兼容清洗</div>
+                    <div class="option-desc">
+                        保留当前追踪参数不变，只在导出后补 `viewBox`、展开路径 `transform`、压缩坐标精度，
+                        让 SVG 写法更容易被 PowerPoint 接受。
+                        {% if office_export_available %}启用后还会额外生成一个推荐给 PowerPoint 的 EMF 下载项。{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="option-tip" id="pptTip">
+                这一步不是重新追踪，也不是强行降细节；它只是把导出的 SVG 再整理一遍，更适合导入 PPT。
+            </div>
+        </div>
+
+        <button class="convert-btn" id="convertBtn" disabled>开始转换</button>
+
+        <div class="progress-section" id="progressSection">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">正在处理...</div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="result-title">转换完成</div>
+            <div class="result-note" id="resultNote">
+                当前文件已启用 PowerPoint 兼容清洗：追踪结果保持不变，只对 SVG 写法做了兼容整理，更适合导入和取消组合编辑。
+            </div>
+            <div class="metrics">
+                <div class="metric-item">
+                    <div class="metric-label">综合评分</div>
+                    <div class="metric-value" id="metricScore">--</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">SSIM</div>
+                    <div class="metric-value" id="metricSsim">--</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">PSNR</div>
+                    <div class="metric-value" id="metricPsnr">--</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">文件大小</div>
+                    <div class="metric-value" id="metricSize">--</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">路径数量</div>
+                    <div class="metric-value" id="metricPaths">--</div>
+                </div>
+            </div>
+            <div class="download-actions">
+                <button class="download-btn" id="downloadBtn">下载 SVG</button>
+                {% if office_export_available %}
+                <button class="download-btn-secondary" id="downloadEmfBtn" style="display: none;">下载 EMF</button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const progressSection = document.getElementById('progressSection');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const resultSection = document.getElementById('resultSection');
+        const resultNote = document.getElementById('resultNote');
+        const errorMessage = document.getElementById('errorMessage');
+        const presetTip = document.getElementById('presetTip');
+        const pptTip = document.getElementById('pptTip');
+        const pptOptimize = document.getElementById('pptOptimize');
+        const pptOptionCard = document.getElementById('pptOptionCard');
+        const officeExportAvailable = {{ office_export_available|tojson }};
+        const downloadEmfBtn = document.getElementById('downloadEmfBtn');
+
+        const presetTips = {
+            clean: 'Clean 会尽量减少细节，更适合图标、扁平插画和边界清晰的素材。',
+            balanced: 'Balanced 适合大多数图片；如果目标是进 PPT 后继续编辑，建议勾选下方的兼容清洗，而不是直接降低画质。',
+            detailed: 'Detailed 会保留更多细节，适合复杂插画和边缘丰富的对象，导入 PPT 时也建议配合兼容清洗。',
+            ultra: 'Ultra 会生成非常复杂的路径，最保真，但在 PowerPoint 里依然可能偏重，兼容清洗只能改善导入成功率，不能把复杂图自动变轻。',
+        };
+
+        let selectedPreset = 'balanced';
+        let currentFile = null;
+        let currentFilename = null;
+        let currentDownloads = {};
+
+        function updatePresetTip() {
+            presetTip.textContent = presetTips[selectedPreset] || presetTips.balanced;
+        }
+
+        function updatePptTip() {
+            if (pptOptimize.checked) {
+                pptOptionCard.classList.add('enabled');
+                pptTip.textContent = officeExportAvailable
+                    ? '已启用兼容清洗。转换仍按当前画质预设执行，完成后会给你 SVG，并额外生成一个更适合 PowerPoint 的 EMF。'
+                    : '已启用兼容清洗。转换仍按当前画质预设执行，最后只额外做一次 SVG 兼容整理。';
+            } else {
+                pptOptionCard.classList.remove('enabled');
+                pptTip.textContent = officeExportAvailable
+                    ? '这一步不是重新追踪，也不是强行降细节；它会整理 SVG 写法，并在可用时额外生成 EMF。'
+                    : '这一步不是重新追踪，也不是强行降细节；它只是把导出的 SVG 再整理一遍，更适合导入 PPT。';
+            }
+        }
+
+        document.querySelectorAll('.preset-option').forEach((option) => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.preset-option').forEach((item) => item.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedPreset = option.dataset.preset;
+                updatePresetTip();
+            });
+        });
+
+        pptOptimize.addEventListener('change', updatePptTip);
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (event) => {
+            event.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            if (event.target.files.length > 0) {
+                handleFile(event.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+            if (!validTypes.includes(file.type)) {
+                showError('请上传 PNG 或 JPG 图片。');
+                return;
+            }
+
+            if (file.size > 50 * 1024 * 1024) {
+                showError('文件大小不能超过 50MB。');
+                return;
+            }
+
+            currentFile = file;
+            uploadArea.classList.add('has-file');
+            uploadArea.querySelector('.upload-text').textContent = file.name;
+            uploadArea.querySelector('.upload-hint').textContent = formatFileSize(file.size);
+            convertBtn.disabled = false;
+            hideError();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024 * 1024) {
+                return `${(bytes / 1024).toFixed(1)} KB`;
+            }
+            return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+        }
+
+        convertBtn.addEventListener('click', async () => {
+            if (!currentFile) {
+                return;
+            }
+
+            convertBtn.disabled = true;
+            progressSection.style.display = 'block';
+            resultSection.style.display = 'none';
+            hideError();
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('preset', selectedPreset);
+            formData.append('evaluate', 'true');
+            formData.append('powerpoint_optimize', String(pptOptimize.checked));
+
+            try {
+                progressFill.style.width = '28%';
+                progressText.textContent = '正在上传并开始矢量化...';
+
+                const response = await fetch('/api/convert', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                progressFill.style.width = '82%';
+                progressText.textContent = '正在生成 SVG...';
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '转换失败');
+                }
+
+                currentFilename = data.output_file;
+                progressFill.style.width = '100%';
+                progressText.textContent = '已完成';
+
+                setTimeout(() => {
+                    progressSection.style.display = 'none';
+                    showResults(data);
+                }, 350);
+            } catch (error) {
+                progressSection.style.display = 'none';
+                convertBtn.disabled = false;
+                showError(`转换失败：${error.message}`);
+            }
+        });
+
+        function showResults(data) {
+            const metrics = data.metrics || {};
+            const result = data.result || {};
+            currentDownloads = result.downloads || {};
+            if (!currentDownloads.svg && currentFilename) {
+                currentDownloads.svg = currentFilename;
+            }
+
+            document.getElementById('metricScore').textContent =
+                metrics.score !== undefined && metrics.score !== null
+                    ? `${metrics.score.toFixed(1)}/100`
+                    : 'N/A';
+            document.getElementById('metricSsim').textContent =
+                metrics.ssim !== undefined && metrics.ssim !== null
+                    ? metrics.ssim.toFixed(4)
+                    : 'N/A';
+            document.getElementById('metricPsnr').textContent =
+                metrics.psnr !== undefined && metrics.psnr !== null
+                    ? `${metrics.psnr.toFixed(1)} dB`
+                    : 'N/A';
+            document.getElementById('metricSize').textContent =
+                result.file_size_mb !== undefined && result.file_size_mb !== null
+                    ? `${result.file_size_mb} MB`
+                    : 'N/A';
+            document.getElementById('metricPaths').textContent =
+                result.path_count !== undefined && result.path_count !== null
+                    ? result.path_count.toLocaleString('en-US')
+                    : 'N/A';
+
+            if (result.powerpoint_optimized) {
+                resultNote.style.display = 'block';
+                resultNote.textContent = currentDownloads.emf
+                    ? '当前文件已启用 PowerPoint 兼容清洗，并额外生成了 EMF。放进 PPT 时优先下载 EMF；需要继续在别的软件里编辑路径时，再用 SVG。'
+                    : '当前文件已启用 PowerPoint 兼容清洗：追踪结果保持不变，只对 SVG 写法做了兼容整理，更适合导入和取消组合编辑。';
+            } else {
+                resultNote.style.display = 'none';
+            }
+
+            if (downloadEmfBtn) {
+                downloadEmfBtn.style.display = currentDownloads.emf ? 'block' : 'none';
+            }
+            resultSection.style.display = 'block';
+            convertBtn.disabled = false;
+        }
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const svgFile = currentDownloads.svg || currentFilename;
+            if (svgFile) {
+                window.location.href = `/download/${svgFile}`;
+            }
+        });
+
+        if (downloadEmfBtn) {
+            downloadEmfBtn.addEventListener('click', () => {
+                if (currentDownloads.emf) {
+                    window.location.href = `/download/${currentDownloads.emf}`;
+                }
+            });
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+
+        updatePresetTip();
+        updatePptTip();
+    </script>
+</body>
+</html>
